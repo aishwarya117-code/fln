@@ -5,10 +5,13 @@ import {
   Menu, X, Search, Bell, Sun, Moon, LogOut, ChevronRight, ChevronLeft, ChevronDown,
   LayoutDashboard, BookOpen, UserCheck, Calendar, ShieldCheck, HelpCircle, Settings, Users,
   School, GraduationCap, MapPin, BarChart3, ClipboardList, ShieldAlert, KeyRound, Clock, Database, Home, Award,
-  Fingerprint, FileText
+  Fingerprint, FileText,
+  Ticket as TicketIcon, ScrollText
 } from 'lucide-react';
 import { StudentSearch } from './StudentSearch';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { TicketModal } from './tickets/TicketModal';
+import { LogbookModal } from './LogbookModal';
 
 interface NavigationItem {
   name: string;
@@ -64,6 +67,8 @@ export const Layout: React.FC<LayoutProps> = ({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showLogbookModal, setShowLogbookModal] = useState(false);
 
 
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
@@ -78,9 +83,6 @@ export const Layout: React.FC<LayoutProps> = ({
   const [pinnedItems, setPinnedItems] = useState<string[]>(['Dashboard']);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string } | null>(null);
   const [showDbModal, setShowDbModal] = useState(false);
-  const [customUri, setCustomUri] = useState('');
-  const [dbConnecting, setDbConnecting] = useState(false);
-  const [dbConnectMsg, setDbConnectMsg] = useState<{ success: boolean; text: string } | null>(null);
 
   useEffect(() => {
     apiFetch('/api/db-status')
@@ -119,6 +121,14 @@ React.useEffect(() => {
   }, [isDark]);
 
   const collapsed = sidebarCollapsed;
+
+  // Mirrors GET /api/logbook authorization: only admin-tier roles may read the
+  // audit trail (teacher/volunteer/school receive 403), so hide the action for them.
+  const canViewLogbook =
+    currentUser.role === UserRole.SUPERADMIN ||
+    currentUser.role === UserRole.ADMIN ||
+    currentUser.role === UserRole.DISTRICT_ADMIN ||
+    currentUser.role === UserRole.BLOCK_ADMIN;
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev: boolean) => {
@@ -169,6 +179,12 @@ React.useEffect(() => {
         });
         list.push({ name: 'Worksheets', view: 'worksheets', icon: ClipboardList });
         list.push({ name: 'Misconceptions', view: 'misconceptions', icon: Fingerprint });
+        // Pedagogical & Process Feedback — moved out of the TeacherDashboard
+        // body into the LHS sidebar so the ticket form doesn't crowd the
+        // student list / diagnostic cards. The `activePanel === 'tickets'`
+        // route in App.tsx renders the same <TicketSubmission> component
+        // that used to live inline here.
+        list.push({ name: 'Feedback', view: 'tickets', icon: HelpCircle });
         break;
 
       case UserRole.VOLUNTEER:
@@ -210,6 +226,7 @@ React.useEffect(() => {
         list.push({ name: 'Teachers', view: 'teachers', icon: Users });
         list.push({ name: 'Performance', view: 'performance', icon: BarChart3 });
         list.push({ name: 'Analytics', view: 'analytics', icon: BarChart3 });
+        list.push({ name: 'Question Bank', view: 'question_bank', icon: Database });
         list.push({ name: 'Aadhaar Reveal', view: 'aadhaar_reveal', icon: ShieldCheck });
         list.push({ name: 'Security', view: 'security', icon: KeyRound });
         break;
@@ -218,6 +235,7 @@ React.useEffect(() => {
         list.push({ name: 'Blocks', view: 'blocks', icon: MapPin });
         list.push({ name: 'Schools', view: 'schools', icon: School });
         list.push({ name: 'Analytics', view: 'analytics', icon: BarChart3 });
+        list.push({ name: 'Question Bank', view: 'question_bank', icon: Database });
         list.push({ name: 'Aadhaar Reveal', view: 'aadhaar_reveal', icon: ShieldCheck });
         list.push({ name: 'Security', view: 'security', icon: KeyRound });
         break;
@@ -225,6 +243,7 @@ React.useEffect(() => {
       case UserRole.ADMIN:
         list.push({ name: 'Districts', view: 'districts', icon: MapPin });
         list.push({ name: 'Analytics', view: 'analytics', icon: BarChart3 });
+        list.push({ name: 'Question Bank', view: 'question_bank', icon: Database });
         list.push({ name: 'Aadhaar Reveal', view: 'aadhaar_reveal', icon: ShieldCheck });
         list.push({ name: 'Security', view: 'security', icon: KeyRound });
         list.push({ name: 'Certification Reviews', view: 'certification_reviews', icon: Award });
@@ -236,6 +255,7 @@ React.useEffect(() => {
         list.push({ name: 'Schools', view: 'schools', icon: School });
         list.push({ name: 'Worksheet Templates', view: 'worksheet_templates', icon: ClipboardList });
         list.push({ name: 'Content', view: 'content', icon: BookOpen });
+        list.push({ name: 'Question Bank', view: 'question_bank', icon: Database });
         list.push({ name: 'Analytics', view: 'analytics', icon: BarChart3 });
         list.push({ name: 'System Settings', view: 'system_settings', icon: Settings });
         list.push({ name: 'Aadhaar Reveal', view: 'aadhaar_reveal', icon: ShieldCheck });
@@ -370,7 +390,7 @@ React.useEffect(() => {
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
                 : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
             }`}
-            title="Click to view Database status and options"
+            title="Database connection status"
           >
             <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${dbStatus?.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span className="text-[10px] uppercase tracking-wider">
@@ -433,6 +453,28 @@ React.useEffect(() => {
               </div>
             )}
           </div>
+
+          {/* Support Tickets — opens the existing ticket list/create flow */}
+          <button
+            onClick={() => setShowTicketModal(true)}
+            className="rounded-lg p-2 text-slate-505 hover:bg-slate-100 hover:text-indigo-600 transition dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+            title="Support Tickets"
+            aria-label="Open support tickets"
+          >
+            <TicketIcon className="h-4.5 w-4.5" />
+          </button>
+
+          {/* Activity Logbook — admin-tier only, matching /api/logbook authorization */}
+          {canViewLogbook && (
+            <button
+              onClick={() => setShowLogbookModal(true)}
+              className="rounded-lg p-2 text-slate-505 hover:bg-slate-100 hover:text-indigo-600 transition dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+              title="Activity Logbook"
+              aria-label="Open activity logbook"
+            >
+              <ScrollText className="h-4.5 w-4.5" />
+            </button>
+          )}
 
           {/* User Profile Info */}
           <div className="flex items-center gap-2 border-l border-slate-200 pl-4 dark:border-slate-700">
@@ -702,8 +744,8 @@ React.useEffect(() => {
                   <Database className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base">Database Connection Manager</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Manage MongoDB Atlas & Local Database Storage</p>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">Database Storage Status</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Whether this server is using MongoDB Atlas or the local file database</p>
                 </div>
               </div>
               <button onClick={() => setShowDbModal(false)} className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
@@ -784,6 +826,22 @@ React.useEffect(() => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Support Ticket & Activity Logbook Modals */}
+      <TicketModal
+        isOpen={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        token={token}
+        userRole={currentUser.role}
+      />
+      {canViewLogbook && (
+        <LogbookModal
+          isOpen={showLogbookModal}
+          onClose={() => setShowLogbookModal(false)}
+          token={token}
+          user={currentUser}
+        />
       )}
     </div>
   );

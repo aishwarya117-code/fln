@@ -1,11 +1,6 @@
-import { apiFetch } from '../services/apiClient';
-import React, { useState, useEffect } from 'react';
-import { User, UserRole, Student, ClassGroup, School, Worksheet, LogEntry, Ticket } from '../types';
-import { Users, BookOpen, Calendar, ArrowRight, SlidersHorizontal, Layers, Award, MapPin, School as SchoolIcon, BarChart3, FileText, Building2, BookMarked, Globe, Settings, Database, RefreshCw, Search, ChevronDown } from 'lucide-react';
-import { Table, Column } from './Table';
-import { MetricCard } from './Card';
-import { STATE_NAMES, DISTRICT_NAMES, BLOCK_NAMES } from '../constants';
-import { FLN_LEVELS_LIST, parseCSVText, LevelBadge } from './RoleDashboards';
+import React from 'react';
+import { Award } from 'lucide-react';
+import { User, UserRole } from '../types';
 import { usePanelData } from './panels/usePanelData';
 import { AdaptiveTestPanel } from './panels/AdaptiveTestPanel';
 import { TestHistoryPanel } from './panels/TestHistoryPanel';
@@ -30,6 +25,7 @@ import { DistrictsPanel } from './panels/DistrictsPanel';
 import { BlocksPanel } from './panels/BlocksPanel';
 import { AnalyticsPanel } from './panels/AnalyticsPanel';
 import { StudentProfilePanel } from './panels/StudentProfilePanel';
+import { QuestionBankPanel } from './panels/QuestionBankPanel';
 import { PageHeader } from './panels/PanelShared';
 import { CertificationReviewPanel } from './CertificationReviewPanel';
 import { ReportCardView } from './ReportCardView';
@@ -63,7 +59,7 @@ const CONTENT_ITEMS = [
 
 export const PanelViews: React.FC<PanelViewsProps> = ({ activePanel, currentUser, token, onSelectView, onSelectPanel, selectedStudentId }) => {
   const {
-    students, studentsLoading, schools, usersList, reportsList, worksheetsList, teachersList,
+    students, studentsLoading, schools, schoolsLoading, schoolsError, refreshSchools, usersList, reportsList, worksheetsList, teachersList,
     getDistrictStats, getBlockStats, updateStudentLocally, refreshStudents,
   } = usePanelData(token, currentUser, activePanel);
 
@@ -146,9 +142,10 @@ export const PanelViews: React.FC<PanelViewsProps> = ({ activePanel, currentUser
 
   if (panel === 'content') return <ContentPanel />;
 
-  if (panel === 'analytics') return <AnalyticsPanel currentUser={currentUser} schools={schools} students={students} getDistrictStats={getDistrictStats} getBlockStats={getBlockStats} />;
+  if (panel === 'analytics') return <AnalyticsPanel currentUser={currentUser} schools={schools} schoolsLoading={schoolsLoading} schoolsError={schoolsError} onRetrySchools={refreshSchools} students={students} getDistrictStats={getDistrictStats} getBlockStats={getBlockStats} />;
 
   if (panel === 'system_settings') return <SystemSettingsPanel />;
+  if (panel === 'question_bank') return <QuestionBankPanel currentUser={currentUser} token={token} />;
 
   // Admin-only Step-Up Aadhaar Reveal (see backend/src/routes/aadhaarDetokenize.ts).
   // The panel itself enforces role gating as a defence-in-depth; the menu
