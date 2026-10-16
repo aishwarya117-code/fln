@@ -12,6 +12,8 @@ import { TestHistoryPanel } from './panels/TestHistoryPanel';
 import { WorksheetTemplatesPanel } from './panels/WorksheetTemplatesPanel';
 import { SystemSettingsPanel } from './panels/SystemSettingsPanel';
 import { StudentListPanel } from './panels/StudentListPanel';
+import { FlaggedStudentsPanel } from './panels/FlaggedStudentsPanel';
+import { QuestionFlagReviewPanel } from './panels/QuestionFlagReviewPanel';
 import { AadhaarRevealPanel } from './panels/AadhaarRevealPanel';
 import { SecurityPanel } from './panels/SecurityPanel';
 import { DiagnosticTestPanel } from './panels/DiagnosticTestPanel';
@@ -80,6 +82,18 @@ export const PanelViews: React.FC<PanelViewsProps> = ({ activePanel, currentUser
     );
   }
 
+  if (panel === 'flagged_students') {
+    return (
+      <FlaggedStudentsPanel currentUser={currentUser} token={token} />
+    );
+  }
+
+  if (panel === 'question_flag_review') {
+    return (
+      <QuestionFlagReviewPanel token={token} />
+    );
+  }
+
   if (panel === 'student_profile') return <StudentProfilePanel students={students} studentsLoading={studentsLoading} schools={schools} reportsList={reportsList} worksheetsList={worksheetsList} currentUser={currentUser} token={token} updateStudentLocally={updateStudentLocally} />;
 
   if (panel === 'diagnostic_test') return <DiagnosticTestPanel students={students} currentUser={currentUser} token={token} refreshStudents={refreshStudents} />;
@@ -103,12 +117,8 @@ export const PanelViews: React.FC<PanelViewsProps> = ({ activePanel, currentUser
   // ===================== PRINCIPAL / SCHOOL ADMIN PANELS =====================
   if (panel === 'teachers' && (currentUser.role === UserRole.SCHOOL || currentUser.role === UserRole.BLOCK_ADMIN)) return <TeachersPanel schools={schools} teachersList={teachersList} currentUser={currentUser} />;
 
-  // Principal Students navigation (view='students') had no matching
-  // panel handler, so PanelViews returned null and rendered nothing.
-  // Reuse StudentListPanel — the same component used by teachers for
-  // 'student_list'. StudentListPanel already gates the Register/CSV-import
-  // actions behind isTeacherOrVolunteer, so the principal gets a read-only
-  // roster view without any code duplication.
+  // Fix #445/#446: Principal Students navigation (view='students') uses StudentListPanel,
+  // providing full student registration, CSV bulk import, and roster management.
   if (panel === 'students' && currentUser.role === UserRole.SCHOOL) {
     return (
       <StudentListPanel

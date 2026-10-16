@@ -3,6 +3,7 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { MongoClient, Db, ClientSession } from 'mongodb';
 import { CURRICULUM_MAPPING } from './config/curriculumMap';
+import { PASS_SCORE, CERTIFICATION_LEVEL } from './config/constants';
 import type { StudentCycleLock } from './paperLock';
 import type { ScanQualityResult } from './scanQuality';
 
@@ -150,6 +151,22 @@ export interface Student {
   siblingsInSchool?: string;
   teacherNotes?: string;
   streak?: number;
+  /**
+   * Auto-flag raised when a student fails >= 50% of "easy" questions on an
+   * evaluation (SRS: "level auto-flag — 50%+ fail an easy question").
+   * Set by the backend at evaluation time; cleared by a teacher/school
+   * reviewer through POST /api/flags/:studentId/review.
+   */
+  levelFlag?: {
+    flagged: boolean;
+    reason: string;
+    flaggedAt: string;
+    flaggedBy?: string;
+    reviewed: boolean;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewNote?: string;
+  };
 }
 
 export interface Question {
@@ -270,6 +287,25 @@ export interface QuestionBankEntry {
   reviewedBy?: string;
   reviewedAt?: string;
   reviewNote?: string;
+  /**
+   * System auto-flag raised when 50%+ of students consistently fail an
+   * "easy"-tagged question (SRS R-15). Set by the backend at evaluation
+   * time; cleared or confirmed by a superadmin through
+   * POST /api/question-flags/:questionId/review. Distinct from the
+   * human-driven `reviewStatus` above — auto-flags are system-generated,
+   * reviewStatus is human-assigned.
+   */
+  questionFlag?: {
+    flagged: boolean;
+    reason: string;
+    flaggedAt: string;
+    flaggedBy: string; // 'system (auto-flag)'
+    reviewed: boolean;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewNote?: string;
+    reviewAction?: 'dismiss' | 'revise' | 'keep';
+  };
 }
 
 /** The one place the question identity is computed. Seeder and API must agree. */
@@ -1207,6 +1243,7 @@ export class DBStore {
         try {
           const reportsColl = db.collection('evaluationReports');
           await reportsColl.createIndex({ studentId: 1 });
+          await reportsColl.createIndex({ 'questionResults.questionId': 1 });
           console.log('Successfully ensured indexes on "evaluationReports" collection');
         } catch (e: any) {
           console.warn('Failed to ensure indexes on "evaluationReports" collection:', e.message);
@@ -1625,7 +1662,7 @@ export class DBStore {
           $group: {
             _id: null,
             total: { $sum: 1 },
-            pass: { $sum: { $cond: [{ $gte: ['$score', 50] }, 1, 0] } },
+            pass: { $sum: { $cond: [{ $gte: ['$score', PASS_SCORE] }, 1, 0] } },
             avgScore: { $avg: '$score' }
           }
         }
@@ -1684,6 +1721,24 @@ export class DBStore {
       ]).toArray();
     }
     return [];
+  }
+
+  async updateQuestionBankFlag(questionId: string, flag: QuestionBankEntry['questionFlag']): Promise<void> {
+    if (this.mongoDb) {
+      await this.mongoDb.collection('questionBank').updateOne(
+        { questionId },
+        { $set: { questionFlag: flag } }
+      );
+      return;
+    }
+    // File-fallback path.
+    if (this.data) {
+      const idx = this.data.questionBank.findIndex(q => q.questionId === questionId);
+      if (idx !== -1) {
+        this.data.questionBank[idx] = { ...this.data.questionBank[idx], questionFlag: flag };
+        await this.save();
+      }
+    }
   }
 
   /**
@@ -1833,6 +1888,22 @@ export class DBStore {
     return result;
   }
 
+  /**
+   * Find all evaluation reports that contain a given question_id in their
+   * questionResults. Used for incremental per-question auto-flag detection
+   * so we don't need to scan all reports on every submission.
+   */
+  async getEvaluationReportsForQuestion(questionId: string): Promise<EvaluationReport[]> {
+    if (this.mongoDb) {
+      return await this.mongoDb.collection<EvaluationReport>('evaluationReports').find({
+        questionResults: { $elemMatch: { questionId } }
+      }).toArray();
+    }
+    return (this.data?.evaluationReports || []).filter(r =>
+      r.questionResults?.some(qr => qr.questionId === questionId)
+    );
+  }
+
   async getStudentsByIds(ids: string[]): Promise<Student[]> {
     if (this.mongoDb) {
       return await this.mongoDb.collection<Student>('students').find({ id: { $in: ids } }).toArray();
@@ -1950,7 +2021,7 @@ export class DBStore {
 
     const sumLevel = filteredStudents.reduce((acc, s) => acc + s.currentLevel, 0);
     const avgLevel = Math.round((sumLevel / count) * 10) / 10;
-    const certified = filteredStudents.filter(s => s.currentLevel >= 5).length;
+    const certified = filteredStudents.filter(s => s.currentLevel >= CERTIFICATION_LEVEL).length;
     const certificationRate = Math.round((certified / count) * 100);
 
     const topicMastery = {

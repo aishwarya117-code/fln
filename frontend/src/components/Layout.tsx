@@ -161,7 +161,8 @@ React.useEffect(() => {
           icon: GraduationCap,
           subItems: [
             { name: 'Student List', view: 'student_list' },
-{ name: 'Student Profile', view: 'student_profile' },
+            { name: 'Student Profile', view: 'student_profile' },
+            { name: 'Flagged Students', view: 'flagged_students' },
             { name: 'Performance', view: 'performance' },
             { name: 'Report Card', view: 'report_card' }
           ]
@@ -188,6 +189,7 @@ React.useEffect(() => {
           subItems: [
             { name: 'Student List', view: 'student_list' },
             { name: 'Student Profile', view: 'student_profile' },
+            { name: 'Flagged Students', view: 'flagged_students' },
             { name: 'Performance', view: 'performance' },
             { name: 'Report Card', view: 'report_card' }
           ]
@@ -198,6 +200,7 @@ React.useEffect(() => {
       case UserRole.SCHOOL:
         list.push({ name: 'Teachers', view: 'teachers', icon: Users });
         list.push({ name: 'Students', view: 'students', icon: GraduationCap });
+        list.push({ name: 'Flagged Students', view: 'flagged_students', icon: ShieldAlert });
         list.push({ name: 'Performance', view: 'performance', icon: BarChart3 });
         list.push({ name: 'Analytics', view: 'analytics', icon: BarChart3 });
         break;
@@ -225,6 +228,7 @@ React.useEffect(() => {
         list.push({ name: 'Aadhaar Reveal', view: 'aadhaar_reveal', icon: ShieldCheck });
         list.push({ name: 'Security', view: 'security', icon: KeyRound });
         list.push({ name: 'Certification Reviews', view: 'certification_reviews', icon: Award });
+        list.push({ name: 'Question Flag Review', view: 'question_flag_review', icon: ShieldAlert });
         break;
 
       case UserRole.SUPERADMIN:
@@ -238,6 +242,7 @@ React.useEffect(() => {
         list.push({ name: 'Security', view: 'security', icon: KeyRound });
         list.push({ name: 'Audit Logs', view: 'logbook', icon: ShieldCheck });
         list.push({ name: 'Certification Reviews', view: 'certification_reviews', icon: Award });
+        list.push({ name: 'Question Flag Review', view: 'question_flag_review', icon: ShieldAlert });
         break;
     }
 
