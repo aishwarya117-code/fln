@@ -20,6 +20,9 @@ import {
   QUESTION_AUTOFLAG_THRESHOLD,
   QUESTION_AUTOFLAG_MIN_STUDENTS,
 } from '../services/questionFlagService';
+import { calculateStandardAdvancement } from '../gradeLevelCalculator';
+import { computeRootCauseAnalysis } from '../rootCauseAnalysis';
+import { matchesChoiceLetter } from '../answerMatching';
 
 export function registerEvaluationRoutes(app: express.Express) {
 

@@ -7,7 +7,6 @@ import { TestHistoryPanel } from './panels/TestHistoryPanel';
 import { WorksheetTemplatesPanel } from './panels/WorksheetTemplatesPanel';
 import { SystemSettingsPanel } from './panels/SystemSettingsPanel';
 import { StudentListPanel } from './panels/StudentListPanel';
-import { FlaggedStudentsPanel } from './panels/FlaggedStudentsPanel';
 import { QuestionFlagReviewPanel } from './panels/QuestionFlagReviewPanel';
 import { AadhaarRevealPanel } from './panels/AadhaarRevealPanel';
 import { SecurityPanel } from './panels/SecurityPanel';
@@ -80,7 +79,7 @@ export const PanelViews: React.FC<PanelViewsProps> = ({ activePanel, currentUser
 
   if (panel === 'flagged_students') {
     return (
-      <FlaggedStudentsPanel currentUser={currentUser} token={token} />
+      <QuestionFlagReviewPanel token={token} />
     );
   }
 

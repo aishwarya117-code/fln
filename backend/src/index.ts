@@ -46,7 +46,6 @@ import { registerCertificationRoutes } from './routes/certification';
 import { registerMisconceptionRoutes } from './routes/misconceptions';
 import { registerCurriculumRoutes } from './routes/curriculum';
 import { registerQuestionBankRoutes } from './routes/questionBank';
-import { registerFlagRoutes } from './routes/flags';
 import { registerQuestionFlagRoutes } from './routes/questionFlags';
 import { registerErrorTagsRoutes } from './routes/errorTags';
 import { registerObservationRoutes } from './routes/observations';
@@ -330,8 +329,6 @@ async function startServer() {
   registerObservationRoutes(app);
 
   // Student level auto-flag & review queue (SRS: 50%+ fail an easy question).
-  registerFlagRoutes(app);
-
   // Question-level auto-flag & curriculum review queue (SRS R-15).
   app.use('/api/question-flags', writeRateLimiter);
   registerQuestionFlagRoutes(app);
