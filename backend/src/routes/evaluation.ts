@@ -1121,7 +1121,7 @@ export function registerEvaluationRoutes(app: express.Express) {
       currentLevel: recommendedLevel,
       currentSubLevel: newSubLevel,
       // Capped at 59, not 93: worksheet generation still throws UnknownLevelError above 59.
-      targetLevel: Math.min(MAX_FLN_LEVEL, evaluation.recommendedLevel + 1),
+      targetLevel: Math.min(MAX_FLN_LEVEL, recommendedLevel + 1),
       levelHistory
     });
 
